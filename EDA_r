@@ -1,0 +1,435 @@
+#Loading required packages
+
+rqd_pkg <-
+  c(
+    "MASS",
+    "car",
+    "dplyr",
+    "stringdist",
+    "stringr",
+    "forcats",
+    "tidyr",
+    "tidyverse",
+    "lubridate",
+    "ggplot2",
+    "reshape2",
+    "caret",
+    "e1071",
+    "ROCR",
+    "ROSE",
+    "scales",
+    "Information",
+    "magrittr",
+    "AtConP",
+    "cowplot",
+    "caTools"
+  )
+pload <- function(pkg) {
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg))
+    install.packages(new.pkg, dependencies = TRUE)
+  sapply(pkg, require, character.only = TRUE)
+}
+pload(rqd_pkg)
+
+#Loading data files
+credit_data<- read.csv("../input/Credit Bureau data.csv")
+demog_data<- read.csv("../input/Demographic data.csv")
+
+#*******************************************************************************#
+# Data Understanding and Data Prepration - Begins
+#*******************************************************************************#
+
+view(demog_data)
+str(demog_data)
+#'data.frame':	71295 obs. of  12 variables:
+# $ Application.ID                             : int  954457215 432830445 941387308 392161677 182011211 312196805 532217204 74788849 782743811 96964957 ...
+# $ Age                                        : int  48 31 32 43 35 20 42 34 30 22 ...
+# $ Gender                                     : Factor w/ 3 levels "","F","M": 2 3 3 3 2 3 3 3 3 3 ...
+# $ Marital.Status..at.the.time.of.application.: Factor w/ 3 levels "","Married","Single": 2 2 3 2 2 2 2 2 2 3 ...
+# $ No.of.dependents                           : int  2 4 2 1 5 1 2 2 3 1 ...
+# $ Income                                     : num  40 55 46 53 44 39 55 49 48 38 ...
+# $ Education                                  : Factor w/ 6 levels "","Bachelor",..: 2 6 2 2 6 2 6 3 5 2 ...
+# $ Profession                                 : Factor w/ 4 levels "","SAL","SE",..: 2 4 4 3 2 2 2 4 2 4 ...
+# $ Type.of.residence                          : Factor w/ 6 levels "","Company provided",..: 6 6 6 6 6 1 6 6 6 6 ...
+# $ No.of.months.in.current.residence          : int  113 112 104 94 112 116 104 108 115 111 ...
+# $ No.of.months.in.current.company            : int  56 46 49 53 43 52 41 40 58 57 ...
+# $ Performance.Tag                            : int  0 0 0 0 0 0 0 0 0 0 ...
+
+length(unique(demog_data$Application.ID)) == nrow(demog_data)
+#[1] FALSE
+# Shows duplicated Application ID
+
+demog_data[duplicated(demog_data$Application.ID),1] #returns application ID details
+#[1] 765011468 653287861 671989187
+
+view(credit_data)
+str(credit_data)
+
+#data.frame':	71295 obs. of  19 variables:
+ #$ Application.ID                                                 : int  954457215 432830445 941387308 392161677 182011211 312196805 532217204 74788849 782743811 96964957 ...
+ #$ No.of.times.90.DPD.or.worse.in.last.6.months                   : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.times.60.DPD.or.worse.in.last.6.months                   : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.times.30.DPD.or.worse.in.last.6.months                   : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.times.90.DPD.or.worse.in.last.12.months                  : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.times.60.DPD.or.worse.in.last.12.months                  : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.times.30.DPD.or.worse.in.last.12.months                  : int  0 0 0 0 0 0 0 0 1 0 ...
+ #$ Avgas.CC.Utilization.in.last.12.months                         : int  4 3 7 11 12 10 11 13 9 6 ...
+ #$ No.of.trades.opened.in.last.6.months                           : int  1 1 0 1 0 0 0 1 0 1 ...
+ #$ No.of.trades.opened.in.last.12.months                          : int  2 2 0 1 1 0 1 1 0 1 ...
+ #$ No.of.PL.trades.opened.in.last.6.months                        : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.PL.trades.opened.in.last.12.months                       : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.Inquiries.in.last.6.months..excluding.home...auto.loans. : int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ No.of.Inquiries.in.last.12.months..excluding.home...auto.loans.: int  0 0 0 0 0 0 0 0 0 0 ...
+ #$ Presence.of.open.home.loan                                     : int  1 0 1 1 1 0 1 1 1 0 ...
+ #$ Outstanding.Balance                                            : int  2999395 3078 3004972 3355373 3014283 2569 3005535 3004790 3007428 170860 ...
+ #$ Total.No.of.Trades                                             : int  4 5 2 4 4 1 4 3 2 1 ...
+ #$ Presence.of.open.auto.loan                                     : int  0 0 0 1 0 0 0 0 0 1 ...
+ #$ Performance.Tag                                                : int  0 0 0 0 0 0 0 0 0 0 ...
+ 
+length(unique(credit_data$Application.ID)) == nrow(credit_data)
+#[1] FALSE
+# Shows duplicated Application ID
+
+credit_data[duplicated(credit_data$Application.ID),1] #returns application ID details
+#[1] 765011468 653287861 671989187
+
+# Both demographic_data and credit_data have duplicates with matching Application ID, so we can remove duplicates
+
+# Removing duplicates
+demog_data <- demog_data[!duplicated(demog_data$Application.ID),]
+dim(demog_data)
+#[1] 71292    12
+
+credit_data<- credit_data[!duplicated(credit_data$Application.ID),]
+dim(credit_data)
+#[1] 71292    19
+
+identical(demog_data$Application.ID,credit_data$Application.ID) # check if Application IDs match in 2 datasets
+# TRUE
+
+# Checking NA values
+data.frame(colSums(is.na(demog_data)))
+#Application.ID                                 0                      
+#Age                                            0                      
+#Gender                                         0                      
+#Marital.Status..at.the.time.of.application.    0                      
+#No.of.dependents                               3                      
+#Income                                         0                      
+#Education                                      0                      
+#Profession                                     0                      
+#Type.of.residence                              0                      
+#No.of.months.in.current.residence              0                      
+#No.of.months.in.current.company                0                      
+#Performance.Tag                             1425
+
+data.frame(colSums(is.na(credit_data)))
+#Application.ID                                                     0                       
+#No.of.times.90.DPD.or.worse.in.last.6.months                       0                       
+#No.of.times.60.DPD.or.worse.in.last.6.months                       0                       
+#No.of.times.30.DPD.or.worse.in.last.6.months                       0                       
+#No.of.times.90.DPD.or.worse.in.last.12.months                      0                       
+#No.of.times.60.DPD.or.worse.in.last.12.months                      0                       
+#No.of.times.30.DPD.or.worse.in.last.12.months                      0                       
+#Avgas.CC.Utilization.in.last.12.months                          1058                       
+#No.of.trades.opened.in.last.6.months                               1                       
+#No.of.trades.opened.in.last.12.months                              0                       
+#No.of.PL.trades.opened.in.last.6.months                            0                       
+#No.of.PL.trades.opened.in.last.12.months                           0                       
+#No.of.Inquiries.in.last.6.months..excluding.home...auto.loans.     0                       
+#No.of.Inquiries.in.last.12.months..excluding.home...auto.loans.    0                       
+#Presence.of.open.home.loan                                       272                       
+#Outstanding.Balance                                              272                       
+#Total.No.of.Trades                                                 0                       
+#Presence.of.open.auto.loan                                         0                       
+#Performance.Tag                                                 1425
+
+#1425 blanks in demog_data and credit_data - need to check commonality
+
+demogNAPerformance.Tag <- demog_data[is.na(demog_data$Performance.Tag),]
+creditNAPerformance.Tag <- credit_data[is.na(credit_data$Performance.Tag),]
+identical(demogNAPerformance.Tag$Application.ID, creditNAPerformance.Tag$Application.ID)
+# TRUE - 1425 NAPerformance.Tag have same Application IDs and can be removed from both data sets
+
+#removing NA values for Performance.Tag
+demog_data <- demog_data[!is.na(demog_data$Performance.Tag),]
+credit_data <- credit_data[!is.na(credit_data$Performance.Tag),]
+
+dim(demog_data)     #69867    12
+dim(credit_data)    #69867    19
+
+#rename long names with short name for ease of coding
+#get column names - demog
+colnames(demog_data)
+
+demog_data = demog_data %>% rename(
+  App_ID = Application.ID,
+  MaritalStatus = Marital.Status..at.the.time.of.application.,
+  No_of_dependents = No.of.dependents,
+  Residence_type = Type.of.residence,	
+  No_of_mons_curr_residence = No.of.months.in.current.residence,
+  No_of_mons_curr_company = No.of.months.in.current.company,
+  Performance_Tag = Performance.Tag
+)
+colnames(demog_data)
+#********************************************************************#
+#********************************************************************#
+
+#get column names - credit 
+colnames(credit_data)
+
+credit_data = credit_data %>% rename(
+  App_ID = Application.ID,
+  No_of_90dpd_L6M = No.of.times.90.DPD.or.worse.in.last.6.months,
+  No_of_60dpd_L6M = No.of.times.60.DPD.or.worse.in.last.6.months, 
+  No_of_30dpd_L6M = No.of.times.30.DPD.or.worse.in.last.6.months,
+  
+  No_of_90dpd_L12M = No.of.times.90.DPD.or.worse.in.last.12.months,
+  No_of_60dpd_L12M = No.of.times.60.DPD.or.worse.in.last.12.months, 
+  No_of_30dpd_L12M = No.of.times.30.DPD.or.worse.in.last.12.months,
+  
+  Avg_CC_Util_L12M = Avgas.CC.Utilization.in.last.12.months,
+  No_of_trades_opnd_L6M = No.of.trades.opened.in.last.6.months,
+  No_of_trades_opnd_L12M = No.of.trades.opened.in.last.12.months,
+  
+  No_of_PL_trades_opnd_L6M = No.of.PL.trades.opened.in.last.6.months,
+  No_of_PL_trades_opnd_L12M = No.of.PL.trades.opened.in.last.12.months,
+  
+  No_of_Inq_ex_HLAL_L6M = No.of.Inquiries.in.last.6.months..excluding.home...auto.loans.,
+  No_of_Inq_ex_HLAL_L12M = No.of.Inquiries.in.last.12.months..excluding.home...auto.loans.,
+  
+  Presence_of_opn_HL = Presence.of.open.home.loan,
+  Outstanding_Bal =  Outstanding.Balance,
+  
+  Total_No_of_Trades = Total.No.of.Trades,
+  Presence_of_open_AL  = Presence.of.open.auto.loan,                                         
+  Performance_Tag = Performance.Tag
+)
+
+colnames(credit_data)
+
+#********************************************************************#
+#********************************************************************#                                                
+
+#EDA
+
+sum(complete.cases(demog_data))
+
+sum(complete.cases(demog_data))/nrow(demog_data)
+
+length(complete.cases(demog_data))
+length(!is.na(demog_data))
+#0.9799697 shows high % of complete cases so we can ignore cases with NA values
+
+sum(is.na(credit_data)) # 3028 blanks
+identical(complete.cases(credit_data), !is.na(credit_data))
+length(credit_data[!complete.cases(credit_data),1]) #2448 incomplete credit data points - diff with above due to null
+
+sum(complete.cases(credit_data))/nrow(credit_data)
+#0.9656623 shows lower % of complete cases than demog_data so total complete cases will be lower than demog_data
+length(complete.cases(credit_data))
+
+length(demog_data[!complete.cases(demog_data),1]) #returns # of application ID details of incomplete demog data
+#1428
+
+credit_data[duplicated(credit_data$Application.ID),1] #returns application ID details
+
+demog_data <- demog_data[complete.cases(demog_data),]
+
+data.frame(lengths(lapply(demog_data,unique)))
+
+#App_ID                    69867        Non duplicated values (unique)                      
+#Age                          53        Check for negative value, <18                      
+#Gender                        3        Factor var check                      
+#MaritalStatus                 3        Factor var check                      
+#No_of_dependents              6        Check for negative value                      
+#Income                       63        Check for negative value                      
+#Education                     6        Factor var check                      
+#Profession                    4        Factor var check                      
+#Residence_type                6        Factor var check                              
+#No_of_mons_curr_residence   121        Check for negatives                          
+#No_of_mons_curr_company      83        Check for negatives                      
+#Performance_Tag               2        Factor var check
+
+
+summary(demog_data$Age)
+#Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# -3      37      45      45      53      65
+ # Min age is negative which is misleading - Min age should be greater than 18 for credit card. need to check for outliers
+
+nrow(subset(demog_data, Age < "18"))
+#[1] 65
+#65 data points have Age less than 18 which appears suspect for credit card issuance
+
+levels(demog_data$Gender)
+# ""  "F" "M"
+
+data.frame(summary(demog_data$Gender))
+#  Var1 Freq 
+#          2
+# F    16506
+# M    53359
+# shows 2 missing values 
+
+levels(demog_data$Gender)[levels(demog_data$Gender)==""]<-"N" #created a new level "N"
+levels(demog_data$Gender)
+#"N" "F" "M"
+
+levels(demog_data$MaritalStatus)
+#""        "Married" "Single"
+
+data.frame(summary(demog_data$MaritalStatus))
+#             6
+# Married 59544
+# Single  10317
+# shows 6 missing values 
+
+levels(demog_data$MaritalStatus)[levels(demog_data$MaritalStatus)==""]<-"Unspecified" #created a new level "Unspecified"
+levels(demog_data$MaritalStatus)
+#"Unspecified" "Married"     "Single"
+
+summary(as.factor(demog_data$No_of_dependents))
+#1     2     3     4     5      NA's 
+#15218 15128 15645 11998 11875  3
+
+table(demog_data$MaritalStatus,demog_data$No_of_dependents, useNA = "ifany")
+#                 1     2     3     4     5  <NA>
+  Unspecified     2     1     1     1     1     0
+  Married     12578 12598 13114 10678 10573     3
+  Single       2638  2529  2530  1319  1301     0
+
+ColMeans(demog_data[demog_data$MaritalStatus=="Married"])
+colMeans( demog_data[demog_data$MaritalStatus == "Married", -1 ] )
+#impute mean value to NAs
+mean(demog_data$No_of_dependents, na.rm = TRUE)
+
+demog_data[["No_of_dependents"]][is.na(demog_data[["No_of_dependents"]])] <- 3
+
+summary(demog_data$No_of_dependents)
+
+summary(demog_data$Income)
+#Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# -0.50   14.00   27.00   27.41   40.00   60.00
+
+nrow(subset(demog_data, Income < "0"))
+#[1] 81
+# shows 81 income values less than zero 
+
+data.frame(summary(demog_data$Education))
+#               118                        
+#Bachelor     17302                        
+#Masters      23479                        
+#Others         119                        
+#Phd           4463                        
+#Professional 24383
+
+#Education has 118 missing values
+
+levels(demog_data$Education)[levels(demog_data$Education)==""]<-"Unspecified"
+
+data.frame(summary(demog_data$Profession))
+#            13
+# SAL     39671
+# SE      13925
+# SE_PROF 16255
+
+# shows 13 missing data points for Profession
+
+levels(demog_data$Profession)[levels(demog_data$Profession)==""]<-"Unspecified"
+
+data.frame(summary(demog_data$Residence_type))
+
+#                        8                             
+#Company provided     1603                             
+#Living with Parents  1778                             
+#Others                198                             
+#Owned               14003                             
+#Rented              52274
+# shows 8 missing data points for Residence type
+
+levels(demog_data$Residence_type)[levels(demog_data$Residence_type)==""]<-"Unspecified"
+
+summary(demog_data$No_of_mons_curr_residence)
+#Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   6.00    6.00   10.00   34.61   61.00  126.00
+# No issues 
+
+summary(demog_data$No_of_mons_curr_company)
+#Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#   3.00   17.00   34.00   34.2   51.0  133.0
+# No issues 
+
+summary(demog_data$Performance_Tag)
+#Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#0.00000 0.00000 0.00000 0.04218 0.00000 1.00000
+# Looks ok 
+
+levels(as.factor(demog_data$Performance_Tag))
+# "0" "1"
+# Looks ok 
+
+data.frame(lengths(lapply(demog_data,unique)))
+#App_ID                    69864    1428 NA values treated                          
+#Age                          53    Need to treat 64 ages <18                          
+#Gender                        3    Add a 3rd level "N" to Gender                           
+#MaritalStatus                 3    Add a 3rd level "Unspecified" to Marital Status                          
+#No_of_dependents              5    Convert as factor?                          
+#Income                       63    Need to treat 81 negative income - Ignore and impute using income classing                         
+#Education                     6    Has 118 missing Education - tag as "Unspecified"?                          
+#Profession                    4    Has 13 missing Profession - tag as "Unspecified"?                          
+#Residence_type                6    Has 8 missing residence type - tag as "Unspecified"?                          
+#No_of_mons_curr_residence   121    Ok                          
+#No_of_mons_curr_company      83    Ok                          
+#Performance_Tag               2    Ok
+
+
+sum(demog_data$Performance_Tag == "1")/nrow(demog_data)
+
+
+data.frame(lengths(lapply(credit_data,unique)))
+#App_ID                    71292                               
+#No_of_90dpd_L6M               4                               
+#No_of_60dpd_L6M               6                               
+#No_of_30dpd_L6M               8                               
+#No_of_90dpd_L12M              6                               
+#No_of_60dpd_L12M              8                               
+#No_of_30dpd_L12M             10                               
+#Avg_CC_Util_L12M            115                               
+#No_of_trades_opnd_L6M        14                               
+#No_of_trades_opnd_L12M       29                               
+#No_of_PL_trades_opnd_L6M      7                               
+#No_of_PL_trades_opnd_L12M    13                               
+#No_of_Inq_ex_HLAL_L6M        11                               
+#No_of_Inq_ex_HLAL_L12M       21                               
+#Presence_of_opn_HL            3                               
+#Outstanding_Bal           65332                               
+#Total_No_of_Trades           45                               
+#Presence_of_open_AL           2                               
+#Performance_Tag               3
+
+sum(is.na(credit_data)) # 3028 na values
+# no of na values is more than what it was in demog_data
+
+sum(complete.cases(credit_data))/nrow(credit_data)
+# 0.9656623
+
+data.frame(colSums(is.na(credit_data)))
+#App_ID                       0                       
+#No_of_90dpd_L6M              0                       
+#No_of_60dpd_L6M              0                       
+#No_of_30dpd_L6M              0                       
+#No_of_90dpd_L12M             0                       
+#No_of_60dpd_L12M             0                       
+#No_of_30dpd_L12M             0                       
+#Avg_CC_Util_L12M          1058                       
+#No_of_trades_opnd_L6M        1                       
+#No_of_trades_opnd_L12M       0                       
+#No_of_PL_trades_opnd_L6M     0                       
+#No_of_PL_trades_opnd_L12M    0                       
+#No_of_Inq_ex_HLAL_L6M        0                       
+#No_of_Inq_ex_HLAL_L12M       0                       
+#Presence_of_opn_HL         272                       
+#Outstanding_Bal            272                       
+#Total_No_of_Trades           0                       
+#Presence_of_open_AL          0                       
+#Performance_Tag           1425
